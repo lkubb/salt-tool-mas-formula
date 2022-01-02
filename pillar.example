@@ -1,0 +1,15 @@
+tool:
+  users:
+    user:
+      mas:
+        apps:
+          - Telegram
+  mas:
+    users:
+      user:
+        apps:
+          - Telegram    # specifying by name will install lucky-style (most relevant search result)
+          - 747648890   # specifying by id will make sure the correct app is installed
+    defaults:           # default apps for all users
+      apps:
+        - 747648890
