@@ -9,5 +9,5 @@ Mac App Store app '{{ app }}' is installed for user '{{ user.name }}':
   mas.installed:
     - name: {{ app }}
     - user: {{ user.name }}
-  {%- endif %}
+  {%- endfor %}
 {%- endfor %}
