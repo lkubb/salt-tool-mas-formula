@@ -36,9 +36,10 @@ def install(name, user=None):
     e = _which(user)
 
     if not _is_id(name):
-        return __salt__['cmd.retcode']("{} lucky '{}'".format(e, name), runas=user)
+        return not __salt__['cmd.retcode']("{} lucky '{}'".format(e, name), runas=user)
 
-    return __salt__['cmd.retcode']("{} install {}".format(e, name), runas=user)
+    # retcode returns shell-style retcode, need inverse
+    return not __salt__['cmd.retcode']("{} install {}".format(e, name), runas=user)
 
 
 def remove(name, user=None):
@@ -47,7 +48,7 @@ def remove(name, user=None):
     if not _is_id(name) and not (name := _get_local_id(name)):
         raise CommandExecutionError("Could not find installation of '{}'.".format(name))
 
-    return __salt__['cmd.retcode']("{} uninstall {}".format(e, name), runas=user)
+    return not __salt__['cmd.retcode']("{} uninstall {}".format(e, name), runas=user)
 
 
 def upgrade(name, user=None):
@@ -56,7 +57,7 @@ def upgrade(name, user=None):
     if not _is_id(name) and not (name := _get_local_id(name)):
         raise CommandExecutionError("Could not find installation of '{}'.".format(name))
 
-    return __salt__['cmd.retcode']("{} upgrade '{}'".format(e, name), runas=user)
+    return not __salt__['cmd.retcode']("{} upgrade '{}'".format(e, name), runas=user)
 
 
 def _list_installed(user=None):
