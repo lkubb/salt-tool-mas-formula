@@ -8,7 +8,7 @@ Applying `tool-mas` will make sure `mas` is configured as specified and requeste
 This formula provides a custom execution module and state to manage apps installed with mas. The `name` parameter can either be a name (which will result in a lucky style installation by installing the most relevant search result) or an ID (recommended to make sure the correct app is installed). The functions are self-explanatory, please see the source code for comments. Currently, the following states are supported:
 * `mas.installed(name, user)`
 * `mas.absent(name, user)`
-* `mas.uptodate(name, user)`
+* `mas.latest(name, user)`
 
 ## Configuration
 ### Pillar

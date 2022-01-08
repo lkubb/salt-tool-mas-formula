@@ -64,7 +64,7 @@ def installed(name, user=None):
     return ret
 
 
-def uptodate(name, user=None):
+def latest(name, user=None):
     """
     Make sure app is installed and up to date.
 
@@ -72,7 +72,7 @@ def uptodate(name, user=None):
 
     .. code-block:: bash
 
-        salt '*' mas.uptodate telegram
+        salt '*' mas.latest telegram
 
     name
         The name or ID of the app to upgrade or install, if not installed already.
