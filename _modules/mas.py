@@ -18,12 +18,12 @@ def __virtual__():
 
 
 def _which(user=None):
-    if e := salt["cmd.run"]("command -v mas", runas=user):
+    if e := __salt__["cmd.run_stdout"]("command -v mas", runas=user):
         return e
     if salt.utils.platform.is_darwin():
-        if p := salt["cmd.run"]("brew --prefix mas", runas=user):
+        if p := __salt__["cmd.run"]("brew --prefix mas", runas=user):
             return p
-    raise CommandExecutionError("Could not find pipx executable.")
+    raise CommandExecutionError("Could not find mas executable.")
 
 
 def is_installed(name, user=None):
@@ -62,7 +62,7 @@ def upgrade(name, user=None):
 
 def _list_installed(user=None):
     e = _which(user)
-    ls = _parse_list(__salt__['cmd.run']("{} list".format(e), runas=user))
+    ls = _parse_list(__salt__['cmd.run_stdout']("{} list".format(e), raise_err=True, runas=user))
     return {x[0]: x[1] for x in ls}
 
 
@@ -78,7 +78,7 @@ def _find_id(name, user=None):
     if _is_id(name):
         return name
     e = _which(user)
-    ls = __salt__['cmd.run']("{} search '{}'".format(e, name))
+    ls = __salt__['cmd.run_stdout']("{} search '{}'".format(e, name), raise_err=True, runas=user)
     try:
         return _parse_list(ls)[0][0]
     except IndexError:
