@@ -21,7 +21,7 @@ def _which(user=None):
     if e := __salt__["cmd.run_stdout"]("command -v mas", runas=user):
         return e
     if salt.utils.platform.is_darwin():
-        if p := __salt__["cmd.run"]("brew --prefix mas", runas=user):
+        if p := __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user):
             return p
     raise CommandExecutionError("Could not find mas executable.")
 
