@@ -15,9 +15,11 @@ def __virtual__():
 
 def _which(user=None):
     if e := __salt__["cmd.run_stdout"]("command -v mas", runas=user):
+        __salt__['log.info']("Found mas: '{}'".format(e))
         return e
     if salt.utils.platform.is_darwin():
         if p := __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user):
+            __salt__['log.info']("Found mas: '{}'".format(p))
             return p
     raise CommandExecutionError("Could not find mas executable.")
 
@@ -32,7 +34,10 @@ def install(name, user=None):
     e = _which(user)
 
     if not _is_id(name):
+        __salt__['log.info']("mas is installing first search result of '{}'".format(name))
         return not __salt__['cmd.retcode']("{} lucky '{}'".format(e, name), runas=user)
+
+    __salt__['log.info']("mas is installing {}".format(name))
 
     # retcode returns shell-style retcode, need inverse
     return not __salt__['cmd.retcode']("{} install {}".format(e, name), runas=user)
@@ -90,6 +95,8 @@ def upgrade(name, user=None):
     if not _is_id(name) and not (name := _get_local_id(name)):
         raise CommandExecutionError("Could not find installation of '{}'.".format(name))
 
+    __salt__['log.info']("mas is upgrading {}".format(name))
+
     return not __salt__['cmd.retcode']("{} upgrade '{}'".format(e, name), runas=user)
 
 
@@ -114,7 +121,9 @@ def _find_id(name, user=None):
     e = _which(user)
     ls = __salt__['cmd.run_stdout']("{} search '{}'".format(e, name), raise_err=True, runas=user)
     try:
-        return _parse_list(ls)[0][0]
+        res = _parse_list(ls)[0][0]
+        __salt__['log.info']("mas found id of app '{}': {}".format(name, res))
+        return res
     except IndexError:
         return False
 
