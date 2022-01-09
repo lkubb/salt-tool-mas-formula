@@ -28,8 +28,8 @@ def _which(user=None):
 
 def is_installed(name, user=None):
     if _is_id(name):
-        return name in _list_installed(user).keys()
-    return name in _list_installed(user).values()
+        return str(name) in list(_list_installed(user).keys())
+    return name in list(_list_installed(user).values())
 
 
 def install(name, user=None):
@@ -96,6 +96,8 @@ def _get_local_id(name, user=None):
 
 def _parse_list(ls):
     parsed = []
+    if 'No installed apps found' in ls:
+        return []
     for x in ls.splitlines():
         x0, r = x.split(None, 1)
         r, x2 = r.rsplit(None, 1)
