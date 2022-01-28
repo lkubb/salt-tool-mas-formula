@@ -14,11 +14,15 @@ def __virtual__():
 
 
 def _which(user=None):
-    if e := __salt__["cmd.run_stdout"]("command -v mas", runas=user):
+    e = __salt__["cmd.run_stdout"]("command -v mas", runas=user)
+    # if e := __salt__["cmd.run_stdout"]("command -v mas", runas=user):
+    if e:
         __salt__['log.info']("Found mas: '{}'".format(e))
         return e
     if salt.utils.platform.is_darwin():
-        if p := __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user):
+        p = __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user)
+        # if p := __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user):
+        if p:
             __salt__['log.info']("Found mas: '{}'".format(p))
             return p
     raise CommandExecutionError("Could not find mas executable.")
@@ -92,8 +96,11 @@ def remove(name, user=None):
 def upgrade(name, user=None):
     e = _which(user)
 
-    if not _is_id(name) and not (name := _get_local_id(name)):
-        raise CommandExecutionError("Could not find installation of '{}'.".format(name))
+    # if not _is_id(name) and not (name := _get_local_id(name)):
+    if not _is_id(name):
+        name = _get_local_id(name)
+        if not name:
+            raise CommandExecutionError("Could not find installation of '{}'.".format(name))
 
     __salt__['log.info']("mas is upgrading {}".format(name))
 
