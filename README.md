@@ -64,3 +64,6 @@ tool:
       apps:
         - 747648890
 ```
+
+## Todo
+- fix mas.latest state (check if packages are up to date with `mas info` version vs `mas list` version) and don't run if not upgradeable (currently fails with `something went wrong while calling mas`. also not sure if upgrading a single app is possible
