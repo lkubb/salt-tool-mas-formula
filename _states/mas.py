@@ -87,27 +87,20 @@ def latest(name, user=None):
 
     try:
         if __salt__["mas.is_installed"](name, user):
-            if __opts__['test']:
+            if not __salt__['mas.is_outdated'](name, user):
+                ret['comment'] = "App '{}' is already up to date for user '{}'.".format(name, user)
+            elif __opts__['test']:
                 ret['result'] = None
                 ret['comment'] = "App '{}' would have been upgraded for user '{}'.".format(name, user)
-                ret["changes"] = {'installed': name}
+                ret["changes"] = {'upgraded': name}
             elif __salt__["mas.upgrade"](name, user):
                 ret["comment"] = "App '{}' was upgraded for user '{}'.".format(name, user)
                 ret["changes"] = {'upgraded': name}
             else:
                 ret["result"] = False
                 ret["comment"] = "Something went wrong while calling mas."
-        elif __opts__['test']:
-            ret['result'] = None
-            ret['comment'] = "App '{}' would have been installed for user '{}'.".format(name, user)
-            ret["changes"] = {'installed': name}
-        elif __salt__["mas.install"](name, user):
-            ret["comment"] = "App '{}' was installed for user '{}'.".format(name, user)
-            ret["changes"] = {'installed': name}
         else:
-            ret["result"] = False
-            ret["comment"] = "Something went wrong while calling mas."
-        return ret
+            return installed(name, user)
 
     except salt.exceptions.CommandExecutionError as e:
         ret["result"] = False

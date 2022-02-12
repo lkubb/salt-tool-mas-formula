@@ -1,5 +1,8 @@
+from pkg_resources import packaging
+
 from salt.exceptions import CommandExecutionError
 import salt.utils.platform
+import re
 
 __virtualname__ = "mas"
 
@@ -32,6 +35,16 @@ def is_installed(name, user=None):
     if _is_id(name):
         return str(name) in list(_list_installed(user).keys())
     return name in list(_list_installed(user).values())
+
+
+def is_outdated(name, user=None):
+    if not is_installed(name, user):
+        raise CommandExecutionError("App '{}' is not installed for user '{}'.".format(name, user))
+
+    current = _get_current_version(name, user)
+    latest = _get_latest_version(name, user)
+
+    return packaging.version.parse(current) < packaging.version.parse(latest)
 
 
 def install(name, user=None):
@@ -107,10 +120,27 @@ def upgrade(name, user=None):
     return not __salt__['cmd.retcode']("{} upgrade '{}'".format(e, name), runas=user)
 
 
-def _list_installed(user=None):
+def _get_current_version(name, user=None):
+    appid = _get_local_id(name, user)
+    installed = _list_installed(user, versions=True)
+    return installed.get(appid)
+
+
+def _get_latest_version(name, user=None):
+    e = _which(user)
+    appid = _get_local_id(name, user)
+    out = __salt__['cmd.run_stdout']("{} info '{}'".format(e, appid))
+    header = out.splitlines()[0]
+    step1 = header.rsplit('[', 1)[0].strip()
+    return re.findall(r'[0-9\.]+$', step1)[0]
+
+
+def _list_installed(user=None, versions=False):
     e = _which(user)
     ls = _parse_list(__salt__['cmd.run_stdout']("{} list".format(e), raise_err=True, runas=user))
     __salt__['log.info']("mas list of installed apps: {}".format(ls))
+    if versions:
+        return {x[0]: x[2] for x in ls}
     return {x[0]: x[1] for x in ls}
 
 
@@ -137,7 +167,7 @@ def _find_id(name, user=None):
 
 def _get_local_id(name, user=None):
     if _is_id(name):
-        return name
+        return str(name)
     for i, appname in _list_installed(user).items():
         if appname == name:
             __salt__['log.info']("mas found id of installed app '{}': {}".format(name, i))
@@ -163,5 +193,5 @@ def _parse_list(ls):
         x0, r = x.split(None, 1)
         r, x2 = r.rsplit(None, 1)
         x1 = r.strip()
-        parsed.append((x0, x1, x2))
+        parsed.append((x0, x1, x2[1:-1]))
     return parsed
