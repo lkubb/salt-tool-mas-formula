@@ -7,7 +7,7 @@ include:
   {%- for app in user.mas.apps %}
 Mac App Store app '{{ app }}' is installed for user '{{ user.name }}':
   mas.installed:
-    - name: {{ app }}
+    - name: '{{ app }}'
     - user: {{ user.name }}
     - require:
       - mas is installed
