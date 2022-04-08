@@ -27,12 +27,6 @@ def installed(name, user=None):
     """
     Make sure App Store app is installed.
 
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' mas.installed telegram
-
     name
         The name or ID of the app to install, if not installed already. Passing
         a name will install the first hit when searching for the term. If you
@@ -47,13 +41,15 @@ def installed(name, user=None):
     try:
         if __salt__["mas.is_installed"](name, user):
             ret["comment"] = "App is already installed."
-        elif __opts__['test']:
-            ret['result'] = None
-            ret['comment'] = "App '{}' would have been installed for user '{}'.".format(name, user)
-            ret["changes"] = {'installed': name}
+        elif __opts__["test"]:
+            ret["result"] = None
+            ret["comment"] = "App '{}' would have been installed for user '{}'.".format(
+                name, user
+            )
+            ret["changes"] = {"installed": name}
         elif __salt__["mas.install"](name, user):
             ret["comment"] = "App '{}' was installed for user '{}'.".format(name, user)
-            ret["changes"] = {'installed': name}
+            ret["changes"] = {"installed": name}
         else:
             ret["result"] = False
             ret["comment"] = "Something went wrong while calling mas."
@@ -68,12 +64,6 @@ def latest(name, user=None):
     """
     Make sure app is installed and up to date.
 
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' mas.latest telegram
-
     name
         The name or ID of the app to upgrade or install, if not installed already.
         Passing a name will install the first hit when searching for the term.
@@ -87,15 +77,23 @@ def latest(name, user=None):
 
     try:
         if __salt__["mas.is_installed"](name, user):
-            if not __salt__['mas.is_outdated'](name, user):
-                ret['comment'] = "App '{}' is already up to date for user '{}'.".format(name, user)
-            elif __opts__['test']:
-                ret['result'] = None
-                ret['comment'] = "App '{}' would have been upgraded for user '{}'.".format(name, user)
-                ret["changes"] = {'upgraded': name}
+            if not __salt__["mas.is_outdated"](name, user):
+                ret["comment"] = "App '{}' is already up to date for user '{}'.".format(
+                    name, user
+                )
+            elif __opts__["test"]:
+                ret["result"] = None
+                ret[
+                    "comment"
+                ] = "App '{}' would have been upgraded for user '{}'.".format(
+                    name, user
+                )
+                ret["changes"] = {"upgraded": name}
             elif __salt__["mas.upgrade"](name, user):
-                ret["comment"] = "App '{}' was upgraded for user '{}'.".format(name, user)
-                ret["changes"] = {'upgraded': name}
+                ret["comment"] = "App '{}' was upgraded for user '{}'.".format(
+                    name, user
+                )
+                ret["changes"] = {"upgraded": name}
             else:
                 ret["result"] = False
                 ret["comment"] = "Something went wrong while calling mas."
@@ -113,12 +111,6 @@ def absent(name, user=None):
     """
     Make sure App Store app is removed.
 
-    CLI Example:
-
-    .. code-block:: bash
-
-        salt '*' mas.absent telegram
-
     name
         The name or ID of the app to remove, if installed.
         Passing a name will install the first hit when searching for the term.
@@ -134,13 +126,15 @@ def absent(name, user=None):
         if not __salt__["mas.is_installed"](name, user):
             ret["comment"] = "App is already absent."
             return ret
-        elif __opts__['test']:
-            ret['result'] = None
-            ret['comment'] = "App '{}' would have been removed for user '{}'.".format(name, user)
-            ret["changes"] = {'installed': name}
+        elif __opts__["test"]:
+            ret["result"] = None
+            ret["comment"] = "App '{}' would have been removed for user '{}'.".format(
+                name, user
+            )
+            ret["changes"] = {"installed": name}
         elif __salt__["mas.remove"](name, user):
             ret["comment"] = "App '{}' was removed for user '{}'.".format(name, user)
-            ret["changes"] = {'installed': name}
+            ret["changes"] = {"installed": name}
         else:
             ret["result"] = False
             ret["comment"] = "Something went wrong while calling mas."
