@@ -131,10 +131,10 @@ def absent(name, user=None):
             ret["comment"] = "App '{}' would have been removed for user '{}'.".format(
                 name, user
             )
-            ret["changes"] = {"installed": name}
+            ret["changes"] = {"removed": name}
         elif __salt__["mas.remove"](name, user):
             ret["comment"] = "App '{}' was removed for user '{}'.".format(name, user)
-            ret["changes"] = {"installed": name}
+            ret["changes"] = {"removed": name}
         else:
             ret["result"] = False
             ret["comment"] = "Something went wrong while calling mas."

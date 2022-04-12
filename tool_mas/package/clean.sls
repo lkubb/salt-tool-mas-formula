@@ -9,6 +9,7 @@
 include:
   - {{ sls_config_clean }}
 
+
 mas is removed:
   pkg.removed:
     - name: {{ mas.lookup.pkg.name }}
