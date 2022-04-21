@@ -62,7 +62,7 @@ def installed(name, user=None):
 
 def latest(name, user=None):
     """
-    Make sure app is installed and up to date.
+    Make sure App Store app is installed and up to date.
 
     name
         The name or ID of the app to upgrade or install, if not installed already.

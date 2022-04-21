@@ -200,7 +200,7 @@ def remove(name, user=None):
 
 def upgrade(name, user=None):
     """
-    Upgrade whether an app.
+    Upgrade an app.
 
     CLI Example:
 
