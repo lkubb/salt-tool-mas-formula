@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 # vim: ft=sls
 
-{%- set tplroot = tpldir.split('/')[0] %}
-{%- set sls_package_install = tplroot ~ '.package.install' %}
+{%- set tplroot = tpldir.split("/")[0] %}
+{%- set sls_package_install = tplroot ~ ".package.install" %}
 {%- from tplroot ~ "/map.jinja" import mapdata as mas with context %}
 
 include:
   - {{ sls_package_install }}
 
 
-{%- for user in mas.users | selectattr('mas.apps', 'defined') | selectattr('mas.apps') %}
-  {%- for app in user.mas.apps.get('wanted', []) %}
+{%- for user in mas.users | selectattr("mas.apps", "defined") | selectattr("mas.apps") %}
+{%-   for app in user.mas.apps.get("wanted", []) %}
 
 Mac App Store app '{{ app }}' is absent for user '{{ user.name }}':
   mas.absent:
@@ -18,5 +17,5 @@ Mac App Store app '{{ app }}' is absent for user '{{ user.name }}':
     - user: {{ user.name }}
     - require:
       - mas is installed
-  {%- endfor %}
+{%-   endfor %}
 {%- endfor %}
