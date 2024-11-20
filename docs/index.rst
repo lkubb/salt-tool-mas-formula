@@ -1,5 +1,5 @@
-Welcome to salt-tool-mas-formula's documentation!
-=================================================
+Welcome to tool-mas-formula's documentation!
+============================================
 
 .. toctree::
    :maxdepth: 2
