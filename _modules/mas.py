@@ -1,8 +1,7 @@
 import re
 
-from pkg_resources import packaging
-
 import salt.utils.platform
+import salt.utils.versions
 from salt.exceptions import CommandExecutionError
 
 __virtualname__ = "mas"
@@ -88,7 +87,7 @@ def is_outdated(name, user=None):
     current = _get_current_version(name, user)
     latest = _get_latest_version(name, user)
 
-    return packaging.version.parse(current) < packaging.version.parse(latest)
+    return salt.utils.versions.parse(current) < salt.utils.versions.parse(latest)
 
 
 def install(name, user=None):
