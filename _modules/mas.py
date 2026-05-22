@@ -1,8 +1,12 @@
-import re
+import json
+import logging
+import shlex
 
 import salt.utils.platform
 import salt.utils.versions
 from salt.exceptions import CommandExecutionError
+
+log = logging.getLogger(__name__)
 
 __virtualname__ = "mas"
 
@@ -16,22 +20,31 @@ def __virtual__():
     return False
 
 
-def _which(user=None):
-    e = __salt__["cmd.run_stdout"]("command -v mas", runas=user)
-    # if e := __salt__["cmd.run_stdout"]("command -v mas", runas=user):
-    if e:
-        __salt__["log.info"]("Found mas: '{}'".format(e))
-        return e
-    if salt.utils.platform.is_darwin():
-        p = __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user)
-        # if p := __salt__["cmd.run_stdout"]("brew --prefix mas", runas=user):
-        if p:
-            __salt__["log.info"]("Found mas: '{}'".format(p))
-            return p
+def _which():
+    if exe := __salt__["cmd.run_stdout"]("command -v mas"):
+        log.debug("Found mas at %s", exe)
+        return exe
+    if exe := __salt__["cmd.run_stdout"]("brew --prefix mas"):
+        log.debug("Found mas at %s", exe)
+        return exe
     raise CommandExecutionError("Could not find mas executable.")
 
 
-def is_installed(name, user=None):
+def _mas(cmd, *args, jsonfmt=True):
+    cmd = [_which(), cmd]
+    if jsonfmt:
+        cmd.append("--json")
+    cmd.extend(args)
+    res = __salt__["cmd.run_stdout"](shlex.join(cmd), raise_err=True)
+    if jsonfmt:
+        try:
+            return json.loads(res)
+        except json.JSONDecodeError:
+            return [json.loads(line) for line in res.splitlines()]
+    return res
+
+
+def is_installed(name):
     """
     Inquire whether an app is installed.
 
@@ -40,24 +53,20 @@ def is_installed(name, user=None):
     .. code-block:: bash
 
         salt '*' mas.is_installed Telegram
-        salt '*' mas.is_installed "747648890"
+        salt '*' mas.is_installed 747648890
 
     name
         The name or ID of the app to inquire about. Passing
         a name will look up the ID of the most relevant search result.
-        If you want to be precise, pass the numeric ID as a string.
-        This avoids implicit casting issues.
 
-    user
-        The username to inquire about the app for. Defaults to salt user.
     """
 
     if _is_id(name):
-        return str(name) in list(_list_installed(user).keys())
-    return name in list(_list_installed(user).values())
+        return int(name) in _list_installed()
+    return name in _list_installed().values()
 
 
-def is_outdated(name, user=None):
+def is_outdated(name):
     """
     Check whether an app is outdated.
 
@@ -66,31 +75,24 @@ def is_outdated(name, user=None):
     .. code-block:: bash
 
         salt '*' mas.is_outdated Telegram
-        salt '*' mas.is_outdated "747648890"
+        salt '*' mas.is_outdated 747648890
 
     name
         The name or ID of the app to check. Passing
         a name will look up the ID of the most relevant search result.
-        If you want to be precise, pass the numeric ID as a string.
-        This avoids implicit casting issues.
-
-    user
-        The username to check the app for. Defaults to salt user.
 
     """
 
-    if not is_installed(name, user):
-        raise CommandExecutionError(
-            "App '{}' is not installed for user '{}'.".format(name, user)
-        )
+    if not is_installed(name):
+        raise CommandExecutionError(f"App '{name}' is not installed.")
 
-    current = _get_current_version(name, user)
-    latest = _get_latest_version(name, user)
+    current = _get_current_version(name)
+    latest = _get_latest_version(name)
 
     return salt.utils.versions.parse(current) < salt.utils.versions.parse(latest)
 
 
-def install(name, user=None):
+def install(name):
     """
     Install an app from the MacOS App Store.
 
@@ -99,34 +101,23 @@ def install(name, user=None):
     .. code-block:: bash
 
         salt '*' mas.install Telegram
-        salt '*' mas.install "747648890"
+        salt '*' mas.install 747648890
 
     name
         The name or ID of the app to install. Passing
         a name will look up the ID of the most relevant search result.
-        If you want to be precise, pass the numeric ID as a string.
-        This avoids implicit casting issues.
-
-    user
-        The username to install the app for. Defaults to salt user.
 
     """
 
-    e = _which(user)
-
     if not _is_id(name):
-        __salt__["log.info"](
-            "mas is installing first search result of '{}'".format(name)
-        )
-        return not __salt__["cmd.retcode"]("{} lucky '{}'".format(e, name), runas=user)
-
-    __salt__["log.info"]("mas is installing {}".format(name))
-
-    # retcode returns shell-style retcode, need inverse
-    return not __salt__["cmd.retcode"]("{} install {}".format(e, name), runas=user)
+        log.info("mas is installing first search result of '%s'", name)
+        _mas("lucky", name, jsonfmt=False)
+        return True
+    _mas("install", str(name), jsonfmt=False)
+    return True
 
 
-def remove(name, user=None):
+def remove(name):
     """
     Remove an app.
 
@@ -135,69 +126,59 @@ def remove(name, user=None):
     .. code-block:: bash
 
         salt '*' mas.remove Telegram
-        salt '*' mas.remove "747648890"
+        salt '*' mas.remove 747648890
 
     name
         The name or ID of the app to remove. Passing
         a name will look up the ID of the most relevant search result.
-        If you want to be precise, pass the numeric ID as a string.
-        This avoids implicit casting issues.
-
-    user
-        The username to remove the app for. Defaults to salt user.
 
     """
+
+    # NOTE: This issue has been fixed in v1.8.7, but might ask for privileges
 
     # https://github.com/mas-cli/mas/issues/313
     # requires root permissions to move to trash, but when running as root,
     # does not find the installed app. since mas only moves to trash, replicate
     # that in python
-    from ctypes import cdll, byref, Structure, c_char, c_char_p
-    from ctypes.util import find_library
-
-    Foundation = cdll.LoadLibrary(find_library("Foundation"))
-    CoreServices = cdll.LoadLibrary(find_library("CoreServices"))
-    Foundation.GetMacOSStatusCommentString.restype = c_char_p
-
-    class Ref(Structure):
-        _fields_ = [("hidden", c_char * 80)]
-
-    def check(res):
-        if res:
-            msg = Foundation.GetMacOSStatusCommentString(res).decode("utf-8")
-            raise CommandExecutionError(msg)
-
-    def trash(path):
-        if not isinstance(path, bytes):
-            path = path.encode("utf-8")
-        f = Ref()
-        res = CoreServices.FSPathMakeRefWithOptions(path, 0x01, byref(f), None)
-        check(res)
-        res = CoreServices.FSMoveObjectToTrashSync(byref(f), None, 0)
-        check(res)
 
     # this part would fail in mas since it was running as root
-    appname = _get_local_name(name, user)
+    info = _lookup_local(name)
+    if not info:
+        raise CommandExecutionError(f"Could not find app '{name}'")
+    appid, path = info["adamID"], info["path"]
 
-    if not appname:
-        raise CommandExecutionError(
-            "Could not find installed application '{}'.".format(name)
-        )
+    try:
+        from ctypes import Structure, byref, c_char, c_char_p, cdll
+        from ctypes.util import find_library
 
-    # that is an assumption, not sure if always true
-    path = "/Applications/{}.app".format(appname)
+        Foundation = cdll.LoadLibrary(find_library("Foundation"))
+        CoreServices = cdll.LoadLibrary(find_library("CoreServices"))
+        Foundation.GetMacOSStatusCommentString.restype = c_char_p
 
-    if not __salt__["file.find"](path):
-        raise CommandExecutionError(
-            "Could not find '{}.app' in /Applications".format(appname)
-        )
+        class Ref(Structure):
+            _fields_ = [("hidden", c_char * 80)]
 
-    __salt__["log.info"]("Sending {} to trash.".format(path))
-    trash(path)
+        def check(res):
+            if res:
+                msg = Foundation.GetMacOSStatusCommentString(res).decode("utf-8")
+                raise CommandExecutionError(msg)
+
+        def trash(path):
+            if not isinstance(path, bytes):
+                path = path.encode("utf-8")
+            f = Ref()
+            res = CoreServices.FSPathMakeRefWithOptions(path, 0x01, byref(f), None)
+            check(res)
+            res = CoreServices.FSMoveObjectToTrashSync(byref(f), None, 0)
+            check(res)
+
+        trash(path)
+    except Exception:
+        _mas("remove", appid)
     return True
 
 
-def upgrade(name, user=None):
+def upgrade(name):
     """
     Upgrade an app.
 
@@ -206,58 +187,37 @@ def upgrade(name, user=None):
     .. code-block:: bash
 
         salt '*' mas.upgrade Telegram
-        salt '*' mas.upgrade "747648890"
+        salt '*' mas.upgrade 747648890
 
     name
         The name or ID of the app to upgrade. Passing
         a name will look up the ID of the most relevant search result.
-        If you want to be precise, pass the numeric ID as a string.
-        This avoids implicit casting issues.
-
-    user
-        The username to upgrade the app for. Defaults to salt user.
 
     """
 
-    e = _which(user)
+    if not _is_id(name) and not (name := _get_local_id(name)):
+        raise CommandExecutionError(f"Could not find installation of '{name}'.")
 
-    # if not _is_id(name) and not (name := _get_local_id(name)):
-    if not _is_id(name):
-        name = _get_local_id(name)
-        if not name:
-            raise CommandExecutionError(
-                "Could not find installation of '{}'.".format(name)
-            )
-
-    __salt__["log.info"]("mas is upgrading {}".format(name))
-
-    return not __salt__["cmd.retcode"]("{} upgrade '{}'".format(e, name), runas=user)
+    _mas("upgrade", str(name))
+    return True
 
 
-def _get_current_version(name, user=None):
-    appid = _get_local_id(name, user)
-    installed = _list_installed(user, versions=True)
+def _get_current_version(name):
+    appid = _get_local_id(name)
+    installed = _list_installed(versions=True)
     return installed.get(appid)
 
 
-def _get_latest_version(name, user=None):
-    e = _which(user)
-    appid = _get_local_id(name, user)
-    out = __salt__["cmd.run_stdout"]("{} info '{}'".format(e, appid))
-    header = out.splitlines()[0]
-    step1 = header.rsplit("[", 1)[0].strip()
-    return re.findall(r"[0-9\.]+$", step1)[0]
+def _get_latest_version(name):
+    appid = _get_local_id(name)
+    return _mas("info", str(appid))["version"]
 
 
-def _list_installed(user=None, versions=False):
-    e = _which(user)
-    ls = _parse_list(
-        __salt__["cmd.run_stdout"]("{} list".format(e), raise_err=True, runas=user)
-    )
-    __salt__["log.info"]("mas list of installed apps: {}".format(ls))
+def _list_installed(versions=False):
+    res = _mas("list")
     if versions:
-        return {x[0]: x[2] for x in ls}
-    return {x[0]: x[1] for x in ls}
+        return {app["adamID"]: app["version"] for app in res}
+    return {app["adamID"]: app["name"] for app in res}
 
 
 def _is_id(value):
@@ -268,52 +228,18 @@ def _is_id(value):
     return True
 
 
-def _find_id(name, user=None):
+def _lookup_local(name):
+    isid = _is_id(name)
+    for app in _mas("list"):
+        if isid and app["adamID"] == int(name) or not isid and app["name"] == name:
+            return app
+
+
+def _get_local_id(name):
     if _is_id(name):
-        return name
-    e = _which(user)
-    ls = __salt__["cmd.run_stdout"](
-        "{} search '{}'".format(e, name), raise_err=True, runas=user
-    )
-    try:
-        res = _parse_list(ls)[0][0]
-        __salt__["log.info"]("mas found id of app '{}': {}".format(name, res))
-        return res
-    except IndexError:
-        return False
-
-
-def _get_local_id(name, user=None):
-    if _is_id(name):
-        return str(name)
-    for i, appname in _list_installed(user).items():
-        if appname == name:
-            __salt__["log.info"](
-                "mas found id of installed app '{}': {}".format(name, i)
-            )
-            return i
+        return int(name)
+    info = _lookup_local(name)
+    if info:
+        log.debug("mas found id of installed app '%s': %s", name, info["adamID"])
+        return info["adamID"]
     return False
-
-
-def _get_local_name(appid, user=None):
-    if not _is_id(appid):
-        return appid
-    for i, appname in _list_installed(user).items():
-        if i == str(appid):
-            __salt__["log.info"](
-                "mas found name of installed app '{}': {}".format(appid, appname)
-            )
-            return appname
-    return False
-
-
-def _parse_list(ls):
-    parsed = []
-    if "No installed apps found" in ls:
-        return []
-    for x in ls.splitlines():
-        x0, r = x.split(None, 1)
-        r, x2 = r.rsplit(None, 1)
-        x1 = r.strip()
-        parsed.append((x0, x1, x2[1:-1]))
-    return parsed

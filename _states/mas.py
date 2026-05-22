@@ -4,12 +4,8 @@ Manage Mac App Store apps with mas
 
 """
 
-# import logging
 import salt.exceptions
-
-# import salt.utils.platform
-
-# log = logging.getLogger(__name__)
+import salt.utils.platform
 
 __virtualname__ = "mas"
 
@@ -23,7 +19,7 @@ def __virtual__():
     return False
 
 
-def installed(name, user=None):
+def installed(name):
     """
     Make sure App Store app is installed.
 
@@ -32,114 +28,87 @@ def installed(name, user=None):
         a name will install the first hit when searching for the term. If you
         want to be precise, pass the numeric ID.
 
-    user
-        The username to install the app for. Defaults to salt user.
-
     """
     ret = {"name": name, "result": True, "comment": "", "changes": {}}
 
     try:
-        if __salt__["mas.is_installed"](name, user):
+        if __salt__["mas.is_installed"](name):
             ret["comment"] = "App is already installed."
         elif __opts__["test"]:
             ret["result"] = None
-            ret["comment"] = "App '{}' would have been installed for user '{}'.".format(
-                name, user
-            )
-            ret["changes"] = {"installed": name}
-        elif __salt__["mas.install"](name, user):
-            ret["comment"] = "App '{}' was installed for user '{}'.".format(name, user)
+            ret["comment"] = f"App '{name}' would have been installed."
             ret["changes"] = {"installed": name}
         else:
-            ret["result"] = False
-            ret["comment"] = "Something went wrong while calling mas."
-    except salt.exceptions.CommandExecutionError as e:
+            __salt__["mas.install"](name)
+            ret["comment"] = f"App '{name}' was installed."
+            ret["changes"] = {"installed": name}
+    except salt.exceptions.CommandExecutionError as err:
         ret["result"] = False
-        ret["comment"] = str(e)
+        ret["comment"] = str(err)
 
     return ret
 
 
-def latest(name, user=None):
+def latest(name):
     """
-    Make sure App Store app is installed and up to date.
+    Make sure an App Store app is installed and up to date.
 
     name
         The name or ID of the app to upgrade or install, if not installed already.
         Passing a name will install the first hit when searching for the term.
         If you want to be precise, pass the numeric ID.
 
-    user
-        The username to install the app for. Defaults to salt user.
-
     """
     ret = {"name": name, "result": True, "comment": "", "changes": {}}
 
     try:
-        if __salt__["mas.is_installed"](name, user):
-            if not __salt__["mas.is_outdated"](name, user):
-                ret["comment"] = "App '{}' is already up to date for user '{}'.".format(
-                    name, user
-                )
+        if __salt__["mas.is_installed"](name):
+            if not __salt__["mas.is_outdated"](name):
+                ret["comment"] = f"App '{name}' is already up to date."
             elif __opts__["test"]:
                 ret["result"] = None
-                ret[
-                    "comment"
-                ] = "App '{}' would have been upgraded for user '{}'.".format(
-                    name, user
-                )
-                ret["changes"] = {"upgraded": name}
-            elif __salt__["mas.upgrade"](name, user):
-                ret["comment"] = "App '{}' was upgraded for user '{}'.".format(
-                    name, user
-                )
+                ret["comment"] = f"App '{name}' would have been upgraded."
                 ret["changes"] = {"upgraded": name}
             else:
-                ret["result"] = False
-                ret["comment"] = "Something went wrong while calling mas."
+                __salt__["mas.upgrade"](name)
+                ret["comment"] = f"App '{name}' was upgraded."
+                ret["changes"] = {"upgraded": name}
         else:
-            return installed(name, user)
+            return installed(name)
 
-    except salt.exceptions.CommandExecutionError as e:
+    except salt.exceptions.CommandExecutionError as err:
         ret["result"] = False
-        ret["comment"] = str(e)
+        ret["comment"] = str(err)
 
     return ret
 
 
-def absent(name, user=None):
+def absent(name):
     """
-    Make sure App Store app is removed.
+    Make sure an App Store app is removed.
 
     name
         The name or ID of the app to remove, if installed.
         Passing a name will install the first hit when searching for the term.
         If you want to be precise, pass the numeric ID.
 
-    user
-        The username to remove the app for. Defaults to salt user.
-
     """
     ret = {"name": name, "result": True, "comment": "", "changes": {}}
 
     try:
-        if not __salt__["mas.is_installed"](name, user):
+        if not __salt__["mas.is_installed"](name):
             ret["comment"] = "App is already absent."
             return ret
         elif __opts__["test"]:
             ret["result"] = None
-            ret["comment"] = "App '{}' would have been removed for user '{}'.".format(
-                name, user
-            )
-            ret["changes"] = {"removed": name}
-        elif __salt__["mas.remove"](name, user):
-            ret["comment"] = "App '{}' was removed for user '{}'.".format(name, user)
+            ret["comment"] = f"App '{name}' would have been removed."
             ret["changes"] = {"removed": name}
         else:
-            ret["result"] = False
-            ret["comment"] = "Something went wrong while calling mas."
-    except salt.exceptions.CommandExecutionError as e:
+            __salt__["mas.remove"](name)
+            ret["comment"] = f"App '{name}' was removed."
+            ret["changes"] = {"removed": name}
+    except salt.exceptions.CommandExecutionError as err:
         ret["result"] = False
-        ret["comment"] = str(e)
+        ret["comment"] = str(err)
 
     return ret
